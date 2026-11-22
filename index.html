@@ -11,7 +11,7 @@
 </head><body>
 <header class="masthead"><div class="masthead-inner"><span class="brand">DSSL<span class="brand-divider"></span><span class="brand-detail">Калькулятор видеоархива</span></span><span class="badge">Прототип для верификации</span></div></header>
 <main class="page"><div class="intro"><div><p class="eyebrow">NEW CALC DSSL</p><h1>Калькулятор видеоархива</h1><p class="subtitle">Рассчитайте объём архива, срок хранения и необходимую ёмкость дисков.</p></div><a class="original-link" href="https://www.dssl.ru/integratoram/trassir-calc/" target="_blank" rel="noopener noreferrer">Калькулятор на dssl.ru</a></div>
-<details class="review"><summary>Информация для проверки</summary><div class="review-content"><p>Демонстрационный прототип для пресейла. Расчётная логика основана на действующем калькуляторе DSSL; соответствие результатов требует верификации.</p><p><strong>Просьба проверить:</strong> объём архива и обратный расчёт срока хранения, рекомендуемые битрейты, подбор HDD и поправки на файловую систему. Также оценить удобство для клиентов и менеджеров.</p><p>Резерв пользователя добавляется к объёму записей. Для обычных дисков применяется поправка 5% и 2 ГБ служебного объёма на расчёт. Строка «Дисковый массив RAID» учитывает поправку 0,7% и сама по себе не включает потери на зеркалирование или чётность. Эти допущения необходимо подтвердить при проверке.</p><p>Расчёты выполняются в браузере. Сохранённая история хранится локально в этом браузере; параметры можно передать через ссылку. PHP-версия проверяется отдельно.</p></div></details>
+<details class="review"><summary>Информация для проверки</summary><div class="review-content"><p>Демонстрационный прототип для пресейла. Расчётная логика основана на действующем калькуляторе DSSL; соответствие результатов требует верификации.</p><p><strong>Просьба проверить:</strong> объём архива и обратный расчёт срока хранения, рекомендуемые битрейты, подбор HDD и поправки на файловую систему. Также оценить удобство для клиентов и менеджеров.</p><p>Резерв пользователя добавляется к объёму записей. Для обычных дисков применяется поправка 5% и 2 ГБ служебного объёма на расчёт. Строка «Дисковый массив RAID» учитывает поправку 0,7% и 2 ГБ служебного объёма и сама по себе не включает потери на зеркалирование или чётность. Эти допущения необходимо подтвердить при проверке.</p><p>Расчёты выполняются в браузере. Сохранённая история хранится локально в этом браузере; параметры можно передать через ссылку. PHP-версия проверяется отдельно.</p></div></details>
 <div id="calculator-placeholder" role="status">Загрузка калькулятора…</div>
 <noscript>Для работы калькулятора включите JavaScript в браузере.</noscript>
 <footer>Демонстрационная версия · Основа: Console v1.0.6 · Не является официальным сервисом DSSL</footer>
@@ -560,10 +560,10 @@
       const suggestedBitrate = C.recommendedBitrateKbps(g);
       const isManualBitrate = Number.isFinite(effective) && Number.isFinite(suggestedBitrate) && Math.abs(effective - suggestedBitrate) > .00001;
       $('bitrate-source-' + g.id).textContent = isManualBitrate
-        ? 'Вручную'
+        ? 'Можно ввести вручную'
         : C.bitrateSource(g) === 'table'
-          ? 'Авто · можно изменить'
-          : 'Оценка · можно изменить';
+          ? 'Авто · можно ввести вручную'
+          : 'Оценка · можно ввести вручную';
       $('summary-' + g.id).textContent = `${camerasText(C.numeric(g.count))} · ${C.resolutionLabels[g.resolution] || g.resolution} · ${g.codec} · ${g.fps} к/с`;
       const r = valid && result.groupResults.find(item => item.id === g.id);
       $('group-total-' + g.id).textContent = r ? volumeText(r.dailyTB) + ' / сутки' : '';
@@ -585,7 +585,7 @@
     $('storage-total').textContent = volumeText(reverse ? result.plannedTB : neededVideoTB);
     $('storage-daily').textContent = volumeText(result.dailyTB);
     $('storage-stream').textContent = nf(result.streamMbps) + ' Мбит/с';
-    $('result-chip').textContent = reverse ? camerasText(result.cameras) : result.mixedDays ? 'Разные сроки хранения' : `${state.days} дней архива`;
+    $('result-chip').textContent = reverse ? camerasText(result.cameras) : result.mixedDays ? 'Разные сроки хранения' : `${nf(C.numeric(state.days),0)} ${C.numeric(state.days)%100>=11 && C.numeric(state.days)%100<=14?'дней':C.numeric(state.days)%10===1?'день':C.numeric(state.days)%10>=2 && C.numeric(state.days)%10<=4?'дня':'дней'} архива`;
     $('result-label').textContent = reverse ? 'Архив на этих дисках' : result.reserve === 0 ? 'Объём видеоархива' : 'Объём архива с запасом';
     const subDay = reverse && result.plannedDays < 1;
     const primary = reverse ? (subDay ? (result.retentionDays * 24 < 0.1 ? '< 0,1' : nf(Math.floor(result.retentionDays*240)/10,1)) : nf(result.plannedDays, 0)) : volumeNumber(result.targetTB);
@@ -934,7 +934,7 @@
     toast('Расчёт восстановлен из истории',true);
   }
   function raidDiskCaption(result) {
-    const raidCapacityTB = C.requiredStorageTB(result.plannedTB, 0.7, 0);
+    const raidCapacityTB = C.requiredStorageTB(result.plannedTB, 0.7, 0.002);
     return `Дисковый массив RAID: ${volumeText(raidCapacityTB)}`;
   }
 
