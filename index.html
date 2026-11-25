@@ -656,6 +656,11 @@
   });
   document.addEventListener('change', event => {
     const el = event.target;
+    if (el.id === 'codec-group-select') {
+      codecGroupId = el.value;
+      renderCodecMatrix();
+      return;
+    }
     if (el.dataset.setting && (el.tagName === 'SELECT' || el.type === 'checkbox')) {
       const key = el.dataset.setting;
       state[key] = el.type === 'checkbox' ? el.checked : el.value;
@@ -793,10 +798,34 @@
     const minutes = Math.floor(r.retentionDays * 1440 + 1e-8);
     return minutes >= 60 ? `${Math.floor(minutes/60)} ч ${minutes%60} мин` : minutes >= 1 ? `${minutes} мин` : 'менее минуты';
   }
+  let codecGroupId = null;
   function renderCodecMatrix() {
-    const first = state.groups[0];
-    if (!first) return;
-    $('codec-context').textContent = `Первая группа: ${C.resolutionLabels[first.resolution] || first.resolution}, ${first.fps} к/с. Все числа — кбит/с на одну камеру; * означает оценку`;
+    const context = $('codec-context');
+    let picker = $('codec-group-select');
+    if (!picker) {
+      const label = document.createElement('label');
+      label.className = 'field';
+      label.style.cssText = 'max-width:360px;margin:14px 0;';
+      const title = document.createElement('span');
+      title.textContent = 'Группа для рекомендаций';
+      picker = document.createElement('select');
+      picker.id = 'codec-group-select';
+      picker.setAttribute('aria-label', 'Группа для рекомендаций');
+      label.append(title,picker);
+      context.before(label);
+    }
+    const first = state.groups.find(g => String(g.id) === codecGroupId) || state.groups[0];
+    codecGroupId = first ? String(first.id) : null;
+    const options = state.groups.map((g,i) => `<option value="${esc(String(g.id))}">${esc(String(g.name || 'Группа ' + (i+1)))}</option>`).join('');
+    if (picker.innerHTML !== options) picker.innerHTML = options;
+    picker.value = codecGroupId || '';
+    picker.disabled = state.groups.length < 2;
+    if (!first) {
+      context.textContent = 'Добавьте группу камер, чтобы увидеть рекомендации.';
+      $('codec-rows').innerHTML = '';
+      return;
+    }
+    $('codec-context').textContent = `${first.name || 'Группа'}: ${C.resolutionLabels[first.resolution] || first.resolution}, ${first.fps} к/с. Все числа — кбит/с на одну камеру; * означает оценку`;
     $('codec-rows').innerHTML = Object.keys(C.codecs).map(codec => {
       const vals = ['low','medium','high'].map(scene => C.recommendedBitrateKbps({...first, codec, scene}));
       const selected = codec === first.codec ? ' class="selected-codec"' : '';
